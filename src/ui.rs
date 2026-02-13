@@ -15,46 +15,48 @@ pub fn render_ui(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(33),
-            Constraint::Percentage(34),
-            Constraint::Percentage(33),
+            Constraint::Length(40),
+            Constraint::Min(20),
+            Constraint::Length(40),
         ])
         .split(size);
+    let left_content = render_left_section(app);
+    let left = Paragraph::new(left_content).style(Style::default().bg(SURFACE));
+    f.render_widget(left, chunks[0]);
 
-    let workspaces = render_workspaces(app.active_workspace);
-    f.render_widget(workspaces, chunks[0]);
+    let center_content = render_center_section(app);
+    let center = Paragraph::new(center_content)
+        .alignment(Alignment::Center)
+        .style(Style::default().bg(SURFACE));
+    f.render_widget(center, chunks[1]);
 
-    let clock = render_clock(&app.curr_time);
-    f.render_widget(clock, chunks[1]);
-
-    let sysinfo = render_system_info(app);
-    f.render_widget(sysinfo, chunks[2]);
+    let right_content = render_right_section(app);
+    let right = Paragraph::new(right_content)
+        .alignment(Alignment::Right)
+        .style(Style::default().bg(SURFACE));
+    f.render_widget(right, chunks[2]);
 }
 
-fn render_workspaces(active: u32) -> Paragraph<'static> {
-    let mut spans = vec![];
+fn render_left_section(app: &App) -> Line<'static> {
+    let mut spans = vec![Span::raw("  ")];
 
-    for i in 1..=4 {
-        if i == active {
-            spans.push(Span::styled(format!(" [{}] ", i), workspace_active_style()));
+    for i in 1..=10 {
+        if i == app.active_workspace {
+            spans.push(Span::styled(format!(" {} ", i), workspace_active_style()));
         } else {
             spans.push(Span::styled(format!("  {}  ", i), workspace_style()));
         }
+        spans.push(Span::raw(" "));
     }
-    Paragraph::new(Line::from(spans))
-        .block(Block::default().borders(Borders::ALL))
-        .set_style(Style::default().fg(PRIMARY))
+    Line::from(spans)
 }
 
-fn render_clock(time: &str) -> Paragraph {
-    Paragraph::new(time)
-        .style(clock_style())
-        .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL))
-        .set_style(Style::default().fg(PRIMARY))
+fn render_center_section(app: &App) -> Line {
+    let spans = vec![Span::styled(&app.curr_time, clock_style())];
+    Line::from(spans)
 }
 
-fn render_system_info(app: &App) -> Paragraph {
+fn render_right_section(app: &App) -> Line<'static> {
     let cpu_icon = "󰻠 ";
     let mem_icon = "󰍛 ";
     let disk_icon = "󰋊 ";
@@ -73,9 +75,13 @@ fn render_system_info(app: &App) -> Paragraph {
             battery_style(app.battery_charging, app.battery_level),
         ),
     ];
+    Line::from(spans)
+}
 
-    Paragraph::new(Line::from(spans))
-        .alignment(Alignment::Right)
+fn render_clock(time: &str) -> Paragraph {
+    Paragraph::new(time)
+        .style(clock_style())
+        .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL))
         .set_style(Style::default().fg(PRIMARY))
 }

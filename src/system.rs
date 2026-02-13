@@ -68,17 +68,18 @@ impl SystemInfo {
     }
 
     pub fn battery_info(&mut self) -> Result<(u8, bool), Box<dyn Error>> {
-        let batteries = self.battery_manager.batteries()?;
+        let mut batteries = self.battery_manager.batteries()?;
 
-        for maybe_battery in batteries {
+        if let Some(maybe_battery) = batteries.next() {
             let battery = maybe_battery?;
             let percentage = (battery.state_of_charge().value * 100.0) as u8;
             let charging = matches!(
                 battery.state(),
                 battery::State::Charging | battery::State::Full
             );
-            return Ok((percentage, charging));
+            Ok((percentage, charging))
+        } else {
+            Ok((0, false))
         }
-        Ok((0, false))
     }
 }

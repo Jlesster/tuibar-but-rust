@@ -1,7 +1,10 @@
 use chrono::Local;
 use std::error::Error;
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
 
 use crate::hyprland::{self, HyprlandClient};
+use crate::hyprland_ipc::{HyprlandEvent, HyprlandIPC};
 use crate::system::SystemInfo;
 
 pub struct App {
@@ -20,11 +23,22 @@ pub struct App {
     pub battery_charging: bool,
     system_info: SystemInfo,
     hyprland: Option<HyprlandClient>,
+    event_rx: Option<mpsc::UnboundedReceiver<HyprlandEvent>>,
 }
 
 impl App {
     pub fn new() -> Self {
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
         let hyprland = HyprlandClient::new().ok();
+        if let Ok(ipc) = HyprlandIPC::new() {
+            tokio::spawn(async move {
+                let _ = ipc
+                    .listen(move |event| {
+                        let _ = event_tx.send(event);
+                    })
+                    .await;
+            });
+        }
 
         Self {
             curr_time: String::new(),
@@ -38,11 +52,13 @@ impl App {
             battery_level: 0,
             battery_charging: false,
             system_info: SystemInfo::new(),
+            event_rx: Some(event_rx),
             hyprland,
         }
     }
 
     pub fn update(&mut self) -> Result<(), Box<dyn Error>> {
+        self.process_events();
         //update time
         self.curr_time = Local::now().format("%H:%M:%S | %a %d %b").to_string();
 
@@ -64,6 +80,26 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn process_events(&mut self) {
+        if let Some(ref mut rx) = self.event_rx {
+            while let Ok(event) = rx.try_recv() {
+                match event {
+                    HyprlandEvent::WorkspaceChanged(id) => {
+                        self.active_workspace = id;
+                    }
+                    HyprlandEvent::ActiveWindowChanged(title) => {
+                        self.window_title = title;
+                    }
+                    HyprlandEvent::Fullscreen(is_full) => {
+                        //TODO hide bar
+                    }
+                    HyprlandEvent::MonitorFocused(_) => {}
+                    _ => {}
+                }
+            }
+        }
     }
 
     fn update_system_info(&mut self) -> Result<(), Box<dyn Error>> {

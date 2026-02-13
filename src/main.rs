@@ -10,6 +10,7 @@ use tokio::time::{Duration, interval};
 mod app;
 mod config;
 mod hyprland;
+mod hyprland_ipc;
 mod modules;
 mod styles;
 mod system;
@@ -31,7 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //app init
     let mut app = App::new();
 
-    let mut tick_interval = interval(Duration::from_millis(config.refresh_interval_ms));
+    let mut tick_interval = interval(Duration::from_millis(1000));
+    let mut workspace_interval = interval(Duration::from_millis(200));
 
     loop {
         //draw handle here VV
