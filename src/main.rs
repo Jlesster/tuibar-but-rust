@@ -10,6 +10,7 @@ use tokio::time::{Duration, interval};
 mod app;
 mod config;
 mod hyprland;
+mod modules;
 mod styles;
 mod system;
 mod ui;
