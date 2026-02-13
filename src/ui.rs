@@ -51,8 +51,9 @@ fn render_left_section(app: &App) -> Line<'static> {
     Line::from(spans)
 }
 
-fn render_center_section(app: &App) -> Line {
-    let spans = vec![Span::styled(&app.curr_time, clock_style())];
+fn render_center_section(app: &App) -> Line<'static> {
+    let time_string = app.curr_time.clone();
+    let spans = vec![Span::styled(time_string, clock_style())];
     Line::from(spans)
 }
 

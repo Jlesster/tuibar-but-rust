@@ -30,14 +30,29 @@ impl App {
     pub fn new() -> Self {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         let hyprland = HyprlandClient::new().ok();
+
+        let initial_workspace = if let Some(ref client) = hyprland {
+            client.get_active_workspace().unwrap_or(1)
+        } else {
+            1
+        };
+
         if let Ok(ipc) = HyprlandIPC::new() {
             tokio::spawn(async move {
-                let _ = ipc
+                let result = ipc
                     .listen(move |event| {
-                        let _ = event_tx.send(event);
+                        if let Err(e) = event_tx.send(event) {
+                            eprintln!("App: Failed to send event to app: {}", e);
+                        }
                     })
                     .await;
+
+                if let Err(e) = result {
+                    eprintln!("App: IPC listener error: {}", e);
+                }
             });
+        } else {
+            eprintln!("App: #![warn(- Faled to init HyprlandIPC)]");
         }
 
         Self {
@@ -52,8 +67,8 @@ impl App {
             battery_level: 0,
             battery_charging: false,
             system_info: SystemInfo::new(),
-            event_rx: Some(event_rx),
             hyprland,
+            event_rx: Some(event_rx),
         }
     }
 
@@ -65,26 +80,16 @@ impl App {
         //Update system info
         self.update_system_info()?;
         self.update_battery()?;
-        self.update_hyprland()?;
 
-        Ok(())
-    }
-
-    fn update_hyprland(&mut self) -> Result<(), Box<dyn Error>> {
-        if let Some(ref hyprland) = self.hyprland {
-            if let Ok(workspace) = hyprland.get_active_workspace() {
-                self.active_workspace = workspace;
-            }
-            if let Ok(title) = hyprland.get_active_window() {
-                self.window_title = title;
-            }
-        }
         Ok(())
     }
 
     fn process_events(&mut self) {
         if let Some(ref mut rx) = self.event_rx {
+            let mut event_count = 0;
+
             while let Ok(event) = rx.try_recv() {
+                event_count += 1;
                 match event {
                     HyprlandEvent::WorkspaceChanged(id) => {
                         self.active_workspace = id;
@@ -93,12 +98,18 @@ impl App {
                         self.window_title = title;
                     }
                     HyprlandEvent::Fullscreen(is_full) => {
-                        //TODO hide bar
+                        // TODO: make bar  hide in FS
                     }
-                    HyprlandEvent::MonitorFocused(_) => {}
-                    _ => {}
+                    HyprlandEvent::MonitorFocused(monitor) => {
+                        // TODO: make monitor hooks
+                    }
                 }
             }
+            if event_count > 0 {
+                eprintln!("App: Processed {} events this update", event_count);
+            }
+        } else {
+            eprintln!("App: WARN - no event reciever avaliable");
         }
     }
 
