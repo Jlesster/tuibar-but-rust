@@ -1,4 +1,3 @@
-use chrono::format::parse;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::path::PathBuf;
@@ -52,14 +51,13 @@ impl HyprlandIPC {
 
         let event_type = parts[0];
         let data = parts[1];
-
         match event_type {
             "workspace" => {
-                let workspace_str = data.trim();
-                if let Ok(workspace_id) = workspace_str.parse::<u32>() {
-                    return Some(HyprlandEvent::WorkspaceChanged(workspace_id));
+                if let Ok(workspace_id) = data.parse::<u32>() {
+                    Some(HyprlandEvent::WorkspaceChanged(workspace_id))
+                } else {
+                    None
                 }
-                None
             }
             "activewindow" => {
                 let title = data.split(',').nth(1).unwrap_or("").to_string();
