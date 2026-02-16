@@ -65,21 +65,28 @@ impl App {
         //Update system info
         self.update_system_info()?;
         self.update_battery()?;
-        self.update_hyprland()?;
 
         Ok(())
     }
 
-    fn update_hyprland(&mut self) -> Result<(), Box<dyn Error>> {
-        if let Some(ref hyprland) = self.hyprland {
-            if let Ok(workspace) = hyprland.get_active_workspace() {
-                self.active_workspace = workspace;
+    pub fn take_event_reciever(&mut self) -> mpsc::UnboundedReceiver<HyprlandEvent> {
+        self.event_rx.take().expect("Event reciever already taken")
+    }
+
+    pub fn process_event(&mut self, event: HyprlandEvent) {
+        match event {
+            HyprlandEvent::WorkspaceChanged(id) => {
+                self.active_workspace = id;
             }
-            if let Ok(title) = hyprland.get_active_window() {
+            HyprlandEvent::ActiveWindowChanged(title) => {
                 self.window_title = title;
             }
+            HyprlandEvent::Fullscreen(is_full) => {
+                //TODO hide bar
+            }
+            HyprlandEvent::MonitorFocused(_) => {}
+            _ => {}
         }
-        Ok(())
     }
 
     fn process_events(&mut self) {

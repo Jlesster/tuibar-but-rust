@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::UnixStream;
 
+#[derive(Clone)]
 pub enum HyprlandEvent {
     WorkspaceChanged(u32),
     ActiveWindowChanged(String),
@@ -20,7 +21,7 @@ impl HyprlandIPC {
         let signature =
             std::env::var("HYPRLAND_INSTANCE_SIGNATURE").map_err(|_| "Not running hyprland")?;
 
-        let socket_path = PathBuf::from(format!("/tmp/hypr/{}/.socket2.sock", signature));
+        let socket_path = PathBuf::from(format!("/run/user/1000/hypr/{}/.socket2.sock", signature));
         if !socket_path.exists() {
             return Err("Hyprland event socket not found".into());
         }

@@ -1,12 +1,14 @@
+use crate::modules::{ModuleConfig, ModulePosition};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    pub refresh_interval_ms: u64,
     pub modules: Vec<String>,
+    pub module_configs: HashMap<String, ModuleConfig>,
     pub colors: ColorConfig,
 }
 
@@ -55,15 +57,89 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
+        let mut module_configs = HashMap::new();
+
+        module_configs.insert(
+            "workspaces".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("{id}".to_string()),
+                interval: None,
+                position: ModulePosition::Left,
+            },
+        );
+
+        module_configs.insert(
+            "window".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("{title}".to_string()),
+                interval: None,
+                position: ModulePosition::CenterLeft,
+            },
+        );
+
+        module_configs.insert(
+            "clock".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("%H:%M:%S".to_string()),
+                interval: Some(1000),
+                position: ModulePosition::CenterRight,
+            },
+        );
+
+        module_configs.insert(
+            "cpu".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("{icon} {usage}%".to_string()),
+                interval: Some(2000),
+                position: ModulePosition::Right,
+            },
+        );
+
+        module_configs.insert(
+            "memory".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("{icon} {usage}%".to_string()),
+                interval: Some(2000),
+                position: ModulePosition::Right,
+            },
+        );
+
+        module_configs.insert(
+            "network".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("{icon} {ssid}".to_string()),
+                interval: Some(2000),
+                position: ModulePosition::Right,
+            },
+        );
+
+        module_configs.insert(
+            "battery".to_string(),
+            ModuleConfig {
+                enabled: true,
+                format: Some("{icon} {level}%".to_string()),
+                interval: Some(30000),
+                position: ModulePosition::Right,
+            },
+        );
+
         Self {
-            refresh_interval_ms: 100,
             modules: vec![
                 "workspaces".to_string(),
+                "window".to_string(),
                 "clock".to_string(),
                 "cpu".to_string(),
                 "memory".to_string(),
+                "network".to_string(),
                 "battery".to_string(),
             ],
+            module_configs,
             colors: ColorConfig {
                 primary: "#D7BAFF".to_string(),
                 surface: "#16121B".to_string(),

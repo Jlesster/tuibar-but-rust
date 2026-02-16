@@ -11,11 +11,13 @@ mod app;
 mod config;
 mod hyprland;
 mod hyprland_ipc;
+mod module_manager;
 mod modules;
 mod styles;
 mod system;
 mod ui;
 use app::App;
+use module_manager::ModuleManager;
 use ui::render_ui;
 
 #[tokio::main]
@@ -31,13 +33,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //app init
     let mut app = App::new();
+    let mut module_manager = ModuleManager::new(&config);
 
-    let mut tick_interval = interval(Duration::from_millis(1000));
-    let mut workspace_interval = interval(Duration::from_millis(200));
+    let mut tick_interval = interval(Duration::from_millis(100));
+    let mut event_rx = app.take_event_reciever();
 
     loop {
         //draw handle here VV
-        terminal.draw(|f| render_ui(f, &app))?;
+        terminal.draw(|f| render_ui(f, &app, &module_manager))?;
 
         //Handle events with timeout VV
         if event::poll(Duration::from_millis(0))? {
@@ -50,7 +53,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         tokio::select! {
             _ = tick_interval.tick() => {
-                app.update()?;
+                module_manager.update_all()?;
+            }
+            Some(hypr_event) = event_rx.recv() => {
+                app.process_event(hypr_event.clone());
+                module_manager.handle_hyprland_event(&hypr_event);
             }
         }
     }

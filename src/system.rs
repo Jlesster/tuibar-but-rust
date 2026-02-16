@@ -4,17 +4,14 @@ use sysinfo::System;
 
 pub struct SystemInfo {
     sys: System,
-    battery_manager: Manager,
+    battery_manager: Option<Manager>, // Make it optional
 }
 
 impl SystemInfo {
     pub fn new() -> Self {
         Self {
             sys: System::new_all(),
-            battery_manager: Manager::new().unwrap_or_else(|_| {
-                eprintln!("Failed to create bal manager");
-                Manager::new().unwrap()
-            }),
+            battery_manager: Manager::new().ok(), // Store as Option
         }
     }
 
@@ -68,18 +65,32 @@ impl SystemInfo {
     }
 
     pub fn battery_info(&mut self) -> Result<(u8, bool), Box<dyn Error>> {
-        let mut batteries = self.battery_manager.batteries()?;
+        // Return early if no battery manager
+        let manager = match &mut self.battery_manager {
+            Some(m) => m,
+            None => return Ok((0, false)),
+        };
 
-        if let Some(maybe_battery) = batteries.next() {
-            let battery = maybe_battery?;
-            let percentage = (battery.state_of_charge().value * 100.0) as u8;
-            let charging = matches!(
-                battery.state(),
-                battery::State::Charging | battery::State::Full
-            );
-            Ok((percentage, charging))
-        } else {
-            Ok((0, false))
+        // Wrap in match to handle errors gracefully
+        match manager.batteries() {
+            Ok(mut batteries) => {
+                if let Some(maybe_battery) = batteries.next() {
+                    match maybe_battery {
+                        Ok(battery) => {
+                            let percentage = (battery.state_of_charge().value * 100.0) as u8;
+                            let charging = matches!(
+                                battery.state(),
+                                battery::State::Charging | battery::State::Full
+                            );
+                            Ok((percentage, charging))
+                        }
+                        Err(_) => Ok((0, false)),
+                    }
+                } else {
+                    Ok((0, false))
+                }
+            }
+            Err(_) => Ok((0, false)),
         }
     }
 }
